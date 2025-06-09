@@ -191,6 +191,17 @@ const updateExtension = async (extension_name) => {
 
     Object.assign(extension_data, res.data);
     onLoadingDialogResult(1, res.data.message);
+    setTimeout(async () => {
+      toast(`正在刷新插件列表...`, "info", 2000);
+      try {
+        await getExtensions();
+        toast("插件列表已刷新！", "success");
+
+      } catch (error) {
+        const errorMsg = error.response?.data?.message || error.message || String(error);
+        toast(`刷新插件列表时发生错误: ${errorMsg}`, "error");
+      }
+    }, 1000);
   } catch (err) {
     toast(err, "error");
   }
@@ -377,6 +388,13 @@ const toggleAllPluginsForPlatform = (platformName) => {
 // 生命周期
 onMounted(async () => {
   await getExtensions();
+
+  // 检查是否有 open_config 参数
+  const urlParams = new URLSearchParams(window.location.search);
+  const plugin_name = urlParams.get('open_config');
+  if (plugin_name) {
+    openExtensionConfig(plugin_name);
+  }
 
   try {
     const data = await commonStore.getPluginCollections();
