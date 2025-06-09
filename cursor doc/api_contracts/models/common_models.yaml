@@ -1,0 +1,1045 @@
+# 统一数据模型定义
+# 本文件作为API契约、数据库设计和算法设计的核心数据模型参考
+# 确保跨文档的数据结构一致性
+
+openapi: 3.0.3
+info:
+  title: AstrBot SaaS Platform - 统一数据模型
+  description: |
+    提供整个系统的标准化数据模型定义，确保API、数据库、算法设计的一致性。
+    
+    ## 模型分类
+    - **业务实体**: 租户、会话、消息等核心业务对象
+    - **配置模型**: 系统配置、租户配置、算法参数等
+    - **响应模型**: API响应、分页、错误处理等标准格式
+    - **算法模型**: 算法输入输出、评分、决策等专用结构
+  version: "1.0.0"
+  contact:
+    name: AstrBot开发团队
+    
+components:
+  schemas:
+    # ============================================================================
+    # 核心业务实体模型 (与数据库表结构一一对应)
+    # ============================================================================
+    
+    # 租户模型
+    TenantEntity:
+      type: object
+      description: |
+        租户核心实体，对应数据库 tenants 表
+        参考: database_design/erd_diagram.md 中的 TENANTS 表
+      required:
+        - id
+        - name
+        - email
+        - status
+        - plan
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 租户唯一标识
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 租户名称
+          example: "AI客服公司A"
+        email:
+          type: string
+          format: email
+          description: 租户管理员邮箱
+          example: "admin@company-a.com"
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+        plan:
+          $ref: '#/components/schemas/TenantPlan'
+        api_key:
+          type: string
+          description: API访问密钥
+          example: "ak_live_..."
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 最后更新时间
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 扩展元数据
+    
+    # 租户状态枚举
+    TenantStatus:
+      type: string
+      enum:
+        - active     # 活跃
+        - suspended  # 暂停
+        - deactivated # 停用
+      description: |
+        租户状态定义
+        - active: 正常使用中
+        - suspended: 临时暂停（如欠费）
+        - deactivated: 永久停用
+    
+    # 租户套餐枚举
+    TenantPlan:
+      type: string
+      enum:
+        - basic      # 基础版
+        - pro        # 专业版
+        - enterprise # 企业版
+      description: |
+        租户套餐类型
+        - basic: 基础功能，限制并发数
+        - pro: 完整功能，更高并发
+        - enterprise: 全功能，定制支持
+    
+    # 会话实体
+    SessionEntity:
+      type: object
+      description: |
+        会话核心实体，对应数据库 sessions 表
+        参考: database_design/erd_diagram.md 中的 SESSIONS 表
+      required:
+        - id
+        - tenant_id
+        - platform
+        - user_id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 会话唯一标识
+        tenant_id:
+          type: string
+          format: uuid
+          description: 所属租户ID
+        platform:
+          $ref: '#/components/schemas/PlatformType'
+        user_id:
+          type: string
+          description: 用户在该平台的唯一标识
+        staff_id:
+          type: string
+          format: uuid
+          description: 分配的客服ID（可选）
+          nullable: true
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        channel_type:
+          $ref: '#/components/schemas/ChannelType'
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: 会话优先级(1-10)
+        start_time:
+          type: string
+          format: date-time
+          description: 会话开始时间
+        end_time:
+          type: string
+          format: date-time
+          description: 会话结束时间（可选）
+          nullable: true
+        context_summary:
+          type: string
+          description: 会话摘要
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 平台特定的元数据
+    
+    # 平台类型枚举  
+    PlatformType:
+      type: string
+      enum:
+        - qq_official    # QQ官方
+        - wechat        # 微信
+        - telegram      # Telegram
+        - dingtalk      # 钉钉
+        - lark          # 飞书
+        - webchat       # 网页聊天
+        - custom        # 自定义平台
+      description: |
+        支持的聊天平台类型
+        对应 astrbot/core/platform/sources/ 下的各平台实现
+    
+    # 会话状态枚举
+    SessionStatus:
+      type: string
+      enum:
+        - waiting       # 等待分配
+        - active        # 进行中
+        - transferred   # 已转接
+        - closed        # 已关闭
+        - timeout       # 超时关闭
+      description: |
+        会话状态流转
+        waiting -> active -> (transferred/closed/timeout)
+    
+    # 渠道类型枚举
+    ChannelType:
+      type: string
+      enum:
+        - direct        # 直接对话
+        - group         # 群聊
+        - broadcast     # 广播
+      description: 消息渠道类型
+    
+    # 消息实体
+    MessageEntity:
+      type: object
+      description: |
+        消息核心实体，对应数据库 messages 表
+        参考: database_design/erd_diagram.md 中的 MESSAGES 表
+      required:
+        - id
+        - session_id
+        - content
+        - message_type
+        - sender_type
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 消息唯一标识
+        session_id:
+          type: string
+          format: uuid
+          description: 所属会话ID
+        content:
+          type: string
+          description: 消息内容
+        message_type:
+          $ref: '#/components/schemas/MessageType'
+        sender_type:
+          $ref: '#/components/schemas/SenderType'
+        sender_id:
+          type: string
+          description: 发送者ID
+        platform_message_id:
+          type: string
+          description: 平台原始消息ID
+        reply_to_id:
+          type: string
+          format: uuid
+          description: 回复的消息ID（可选）
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+          description: 消息时间戳
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachmentEntity'
+          description: 消息附件
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 消息元数据
+    
+    # 消息类型枚举
+    MessageType:
+      type: string
+      enum:
+        - text          # 文本消息
+        - image         # 图片
+        - file          # 文件
+        - voice         # 语音
+        - video         # 视频
+        - location      # 位置
+        - system        # 系统消息
+      description: 消息内容类型
+    
+    # 发送者类型枚举  
+    SenderType:
+      type: string
+      enum:
+        - user          # 用户
+        - staff         # 客服
+        - bot           # 机器人
+        - system        # 系统
+      description: 消息发送者类型
+    
+    # 附件实体
+    AttachmentEntity:
+      type: object
+      description: 消息附件信息
+      required:
+        - url
+        - type
+        - size
+      properties:
+        url:
+          type: string
+          format: uri
+          description: 附件访问URL
+        type:
+          type: string
+          description: 附件MIME类型
+          example: "image/jpeg"
+        size:
+          type: integer
+          description: 附件大小（字节）
+        filename:
+          type: string
+          description: 原始文件名
+        thumbnail_url:
+          type: string
+          format: uri
+          description: 缩略图URL（如适用）
+          nullable: true
+    
+    # 客服实体
+    StaffEntity:
+      type: object
+      description: |
+        客服实体，对应数据库 staff 表
+        用于会话分配算法
+      required:
+        - id
+        - tenant_id
+        - name
+        - status
+        - skills
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 客服唯一标识
+        tenant_id:
+          type: string
+          format: uuid
+          description: 所属租户ID
+        name:
+          type: string
+          description: 客服名称
+        email:
+          type: string
+          format: email
+          description: 客服邮箱
+        status:
+          $ref: '#/components/schemas/StaffStatus'
+        skills:
+          type: array
+          items:
+            type: string
+          description: 客服技能标签
+          example: ["技术支持", "售前咨询", "英语"]
+        max_concurrent_sessions:
+          type: integer
+          minimum: 1
+          description: 最大并发会话数
+          default: 5
+        current_sessions:
+          type: integer
+          minimum: 0
+          description: 当前会话数
+        avg_response_time:
+          type: number
+          description: 平均响应时间（秒）
+        last_active_time:
+          type: string
+          format: date-time
+          description: 最后活跃时间
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 扩展信息
+    
+    # 客服状态枚举
+    StaffStatus:
+      type: string
+      enum:
+        - online        # 在线
+        - busy          # 忙碌
+        - away          # 离开
+        - offline       # 离线
+      description: 客服状态
+    
+    # 黑名单实体
+    BlacklistEntity:
+      type: object
+      description: |
+        黑名单实体，对应数据库 blacklist 表
+        支持跨平台同步
+      required:
+        - id
+        - tenant_id
+        - platform
+        - user_id
+        - reason
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 黑名单记录ID
+        tenant_id:
+          type: string
+          format: uuid
+          description: 所属租户ID
+        platform:
+          $ref: '#/components/schemas/PlatformType'
+        user_id:
+          type: string
+          description: 用户在该平台的ID
+        reason:
+          type: string
+          description: 拉黑原因
+        status:
+          $ref: '#/components/schemas/BlacklistStatus'
+        expires_at:
+          type: string
+          format: date-time
+          description: 过期时间（可选）
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+          description: 操作员ID
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+        sync_status:
+          $ref: '#/components/schemas/SyncStatus'
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 扩展信息
+    
+    # 黑名单状态枚举
+    BlacklistStatus:
+      type: string
+      enum:
+        - active        # 生效中
+        - expired       # 已过期
+        - removed       # 已移除
+      description: 黑名单状态
+    
+    # 同步状态枚举
+    SyncStatus:
+      type: string
+      enum:
+        - pending       # 待同步
+        - syncing       # 同步中
+        - synced        # 已同步
+        - failed        # 同步失败
+      description: 跨平台同步状态
+    
+    # ============================================================================
+    # 配置和参数模型
+    # ============================================================================
+    
+    # 租户配置
+    TenantConfigEntity:
+      type: object
+      description: |
+        租户配置，对应数据库 tenant_configs 表
+        包含算法参数、业务规则等
+      required:
+        - tenant_id
+        - config_key
+        - config_value
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          description: 租户ID
+        config_key:
+          type: string
+          description: 配置键
+          example: "session_allocation.weights"
+        config_value:
+          type: object
+          description: 配置值（JSON格式）
+        config_type:
+          type: string
+          enum:
+            - algorithm_params  # 算法参数
+            - business_rules   # 业务规则
+            - ui_settings      # 界面设置
+            - integration      # 集成配置
+          description: 配置类型
+        is_active:
+          type: boolean
+          description: 是否启用
+          default: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    # 会话分配权重配置
+    SessionAllocationWeights:
+      type: object
+      description: |
+        会话分配算法权重配置
+        参考: algorithms/session_management/session_allocation.md
+      required:
+        - skill_weight
+        - workload_weight
+        - response_time_weight
+        - history_weight
+      properties:
+        skill_weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 技能匹配权重
+          default: 0.4
+        workload_weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 负载均衡权重
+          default: 0.3
+        response_time_weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 响应时间权重
+          default: 0.2
+        history_weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 历史服务权重
+          default: 0.1
+        total_weight_check:
+          type: number
+          description: 权重总和（应该接近1.0）
+          readOnly: true
+    
+    # LLM配置
+    LLMConfigEntity:
+      type: object
+      description: |
+        LLM模型配置，对应数据库 llm_configs 表
+        支持多模型配置和动态切换
+      required:
+        - tenant_id
+        - model_name
+        - provider
+        - is_active
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 配置ID
+        tenant_id:
+          type: string
+          format: uuid
+          description: 租户ID
+        model_name:
+          type: string
+          description: 模型名称
+          example: "gpt-4"
+        provider:
+          type: string
+          enum:
+            - openai
+            - azure_openai
+            - anthropic
+            - custom
+          description: 模型提供商
+        api_key:
+          type: string
+          description: API密钥（加密存储）
+          writeOnly: true
+        api_endpoint:
+          type: string
+          format: uri
+          description: API端点URL
+        max_tokens:
+          type: integer
+          minimum: 1
+          maximum: 128000
+          description: 最大Token数
+          default: 4000
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+          description: 温度参数
+          default: 0.7
+        system_prompt:
+          type: string
+          description: 系统提示词
+        is_active:
+          type: boolean
+          description: 是否启用
+        priority:
+          type: integer
+          description: 优先级（数字越小优先级越高）
+          default: 10
+        rate_limit:
+          $ref: '#/components/schemas/RateLimitConfig'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    # 速率限制配置
+    RateLimitConfig:
+      type: object
+      description: API调用速率限制配置
+      properties:
+        requests_per_minute:
+          type: integer
+          minimum: 1
+          description: 每分钟最大请求数
+          default: 60
+        tokens_per_minute:
+          type: integer
+          minimum: 1
+          description: 每分钟最大Token数
+          default: 40000
+        concurrent_requests:
+          type: integer
+          minimum: 1
+          description: 最大并发请求数
+          default: 10
+    
+    # ============================================================================
+    # 算法专用模型 (用于算法输入输出)
+    # ============================================================================
+    
+    # 会话分配请求
+    SessionAllocationRequest:
+      type: object
+      description: |
+        会话分配算法输入
+        参考: algorithms/session_management/session_allocation.md
+      required:
+        - user_request
+        - tenant_config
+      properties:
+        user_request:
+          $ref: '#/components/schemas/UserRequest'
+        available_staff:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffEntity'
+          description: 可用客服列表
+        tenant_config:
+          $ref: '#/components/schemas/SessionAllocationWeights'
+        context:
+          type: object
+          description: 分配上下文（历史记录等）
+          additionalProperties: true
+    
+    # 用户请求信息
+    UserRequest:
+      type: object
+      description: 用户发起的服务请求
+      required:
+        - user_id
+        - platform
+        - message_content
+      properties:
+        user_id:
+          type: string
+          description: 用户ID
+        platform:
+          $ref: '#/components/schemas/PlatformType'
+        message_content:
+          type: string
+          description: 用户消息内容
+        required_skills:
+          type: array
+          items:
+            type: string
+          description: 推断的所需技能
+          example: ["技术支持", "产品咨询"]
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: 请求优先级
+          default: 5
+        language:
+          type: string
+          description: 用户语言
+          example: "zh-CN"
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 额外上下文信息
+    
+    # 会话分配结果
+    SessionAllocationResult:
+      type: object
+      description: 会话分配算法输出
+      required:
+        - allocation_type
+        - timestamp
+      properties:
+        allocation_type:
+          type: string
+          enum:
+            - assigned      # 已分配给客服
+            - queued        # 排队等待
+            - rejected      # 拒绝服务
+          description: 分配结果类型
+        assigned_staff_id:
+          type: string
+          format: uuid
+          description: 分配的客服ID（如果已分配）
+          nullable: true
+        queue_position:
+          type: integer
+          description: 队列位置（如果排队）
+          nullable: true
+        estimated_wait_time:
+          type: integer
+          description: 预估等待时间（秒）
+          nullable: true
+        allocation_score:
+          type: number
+          description: 分配评分
+        allocation_reason:
+          type: string
+          description: 分配决策原因
+        alternative_staff:
+          type: array
+          items:
+            type: object
+            properties:
+              staff_id:
+                type: string
+                format: uuid
+              score:
+                type: number
+          description: 备选客服列表
+        timestamp:
+          type: string
+          format: date-time
+          description: 分配时间
+        execution_time:
+          type: number
+          description: 算法执行时间（毫秒）
+    
+    # 上下文管理请求
+    ContextManagementRequest:
+      type: object
+      description: |
+        上下文管理算法输入
+        参考: algorithms/llm_optimization/context_management.md
+      required:
+        - session_id
+        - new_message
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: 会话ID
+        new_message:
+          $ref: '#/components/schemas/MessageEntity'
+        current_context:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageEntity'
+          description: 当前上下文消息列表
+        max_context_length:
+          type: integer
+          description: 最大上下文长度
+          default: 4000
+        compression_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 压缩触发阈值
+          default: 0.8
+    
+    # 上下文管理结果
+    ContextManagementResult:
+      type: object
+      description: 上下文管理算法输出
+      required:
+        - optimized_context
+        - action_taken
+      properties:
+        optimized_context:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageEntity'
+          description: 优化后的上下文
+        action_taken:
+          type: string
+          enum:
+            - none          # 无操作
+            - compressed    # 上下文压缩
+            - truncated     # 智能截断
+            - summarized    # 摘要压缩
+          description: 执行的优化操作
+        token_count_before:
+          type: integer
+          description: 优化前Token数
+        token_count_after:
+          type: integer
+          description: 优化后Token数
+        compression_ratio:
+          type: number
+          description: 压缩率
+        removed_messages:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: 被移除的消息ID列表
+        summary:
+          type: string
+          description: 压缩摘要（如果有）
+          nullable: true
+    
+    # ============================================================================
+    # 通用响应模型
+    # ============================================================================
+    
+    # 基础响应
+    BaseResponse:
+      type: object
+      description: 所有API响应的基础结构
+      required:
+        - success
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: 请求是否成功
+        message:
+          type: string
+          description: 响应消息
+        timestamp:
+          type: string
+          format: date-time
+          description: 响应时间戳
+        request_id:
+          type: string
+          description: 请求追踪ID
+          example: "req_123456789"
+    
+    # 错误响应
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - error
+          properties:
+            error:
+              type: object
+              required:
+                - code
+                - message
+              properties:
+                code:
+                  type: string
+                  description: 错误代码
+                  example: "INVALID_PARAMETER"
+                message:
+                  type: string
+                  description: 错误描述
+                  example: "参数validation失败"
+                details:
+                  type: object
+                  description: 错误详情
+                  additionalProperties: true
+                stack_trace:
+                  type: string
+                  description: 错误堆栈（仅开发环境）
+    
+    # 分页信息
+    PaginationInfo:
+      type: object
+      description: 分页查询信息
+      required:
+        - page
+        - page_size
+        - total_count
+        - total_pages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: 当前页码
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: 每页记录数
+        total_count:
+          type: integer
+          minimum: 0
+          description: 总记录数
+        total_pages:
+          type: integer
+          minimum: 0
+          description: 总页数
+        has_next:
+          type: boolean
+          description: 是否有下一页
+        has_prev:
+          type: boolean
+          description: 是否有上一页
+    
+    # 分页响应
+    PaginatedResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+            - pagination
+          properties:
+            data:
+              type: array
+              items: {}
+              description: 分页数据列表
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+    
+    # ============================================================================
+    # 数据统计和监控模型
+    # ============================================================================
+    
+    # 使用量统计
+    UsageStatsEntity:
+      type: object
+      description: |
+        使用量统计，对应数据库 usage_stats 表
+        用于计费和监控
+      required:
+        - tenant_id
+        - date
+        - metric_type
+        - metric_value
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 统计记录ID
+        tenant_id:
+          type: string
+          format: uuid
+          description: 租户ID
+        date:
+          type: string
+          format: date
+          description: 统计日期
+        metric_type:
+          type: string
+          enum:
+            - session_count      # 会话数量
+            - message_count      # 消息数量
+            - llm_tokens_used    # LLM Token使用量
+            - api_calls          # API调用次数
+            - storage_used       # 存储使用量
+          description: 指标类型
+        metric_value:
+          type: number
+          description: 指标数值
+        unit:
+          type: string
+          description: 指标单位
+          example: "次"
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 额外统计信息
+    
+    # 性能监控数据
+    PerformanceMetrics:
+      type: object
+      description: 系统性能指标
+      properties:
+        algorithm_performance:
+          type: object
+          description: 算法性能统计
+          properties:
+            session_allocation:
+              type: object
+              properties:
+                avg_execution_time:
+                  type: number
+                  description: 平均执行时间（毫秒）
+                success_rate:
+                  type: number
+                  description: 成功率
+                throughput:
+                  type: number
+                  description: 吞吐量（次/秒）
+        api_performance:
+          type: object
+          description: API性能统计
+          properties:
+            avg_response_time:
+              type: number
+              description: 平均响应时间（毫秒）
+            error_rate:
+              type: number
+              description: 错误率
+            requests_per_second:
+              type: number
+              description: 每秒请求数
+        system_health:
+          type: object
+          description: 系统健康状态
+          properties:
+            cpu_usage:
+              type: number
+              description: CPU使用率
+            memory_usage:
+              type: number
+              description: 内存使用率
+            disk_usage:
+              type: number
+              description: 磁盘使用率
+            active_connections:
+              type: integer
+              description: 活跃连接数
+
+# ============================================================================
+# 文档元信息
+# ============================================================================
+externalDocs:
+  description: |
+    相关文档链接：
+    - 数据库设计: ../database_design/erd_diagram.md
+    - API契约: ./saas_platform_api.yaml  
+    - 算法设计: ../algorithms/00_algorithms_design_overview.md
+    - 架构说明: ../架构说明.md
+  url: https://docs.astrbot.com
+
+# ============================================================================
+# 版本信息和变更日志
+# ============================================================================
+# 
+# v1.0.0 - 2024年 - 初始版本
+# - 定义核心业务实体模型
+# - 建立API、数据库、算法的统一数据规范
+# - 提供完整的类型定义和约束条件
+#
+# 维护说明:
+# - 任何对此文件的修改都需要同步更新相关的API、数据库、算法文档
+# - 新增实体模型时，需要确保在所有相关文档中保持一致
+# - 枚举值的变更需要考虑向后兼容性 

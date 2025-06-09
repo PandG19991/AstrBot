@@ -1,0 +1,873 @@
+openapi: 3.0.3
+info:
+  title: AstrBot SaaS Platform API
+  version: 1.0.0
+  description: |
+    AstrBot SaaS智能客服平台主要API接口规范
+    
+    ## 认证方式
+    使用JWT Bearer Token进行认证，Token包含租户ID和用户权限信息。
+    
+    ## 租户隔离
+    所有API都包含租户隔离逻辑，确保数据安全。
+    
+    ## 错误处理
+    统一使用HTTP状态码和标准错误格式返回错误信息。
+    
+  contact:
+    name: API团队
+    email: api-team@astrbot-saas.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.astrbot-saas.com/v1
+    description: 生产环境
+  - url: https://staging-api.astrbot-saas.com/v1
+    description: 测试环境
+  - url: http://localhost:8000/v1
+    description: 开发环境
+
+security:
+  - BearerAuth: []
+
+paths:
+  # 租户管理
+  /tenants:
+    get:
+      tags:
+        - 租户管理
+      summary: 获取租户列表
+      description: 管理员获取所有租户信息（分页）
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: 租户状态过滤
+          schema:
+            $ref: '#/components/schemas/TenantStatus'
+      responses:
+        '200':
+          description: 成功返回租户列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    
+    post:
+      tags:
+        - 租户管理
+      summary: 创建新租户
+      description: 管理员创建新的租户实例
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: 租户创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: 租户邮箱已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tenants/{tenant_id}:
+    get:
+      tags:
+        - 租户管理
+      summary: 获取租户详情
+      parameters:
+        - $ref: '#/components/parameters/TenantIdParam'
+      responses:
+        '200':
+          description: 成功返回租户详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    
+    put:
+      tags:
+        - 租户管理
+      summary: 更新租户信息
+      parameters:
+        - $ref: '#/components/parameters/TenantIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # 会话管理
+  /sessions:
+    get:
+      tags:
+        - 会话管理
+      summary: 获取会话列表
+      description: 获取当前租户的会话列表（支持筛选和分页）
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: 会话状态过滤
+          schema:
+            $ref: '#/components/schemas/SessionStatus'
+        - name: platform
+          in: query
+          description: 平台类型过滤
+          schema:
+            type: string
+            enum: [wechat, qq, telegram, webchat]
+        - name: search
+          in: query
+          description: 搜索关键词（用户昵称或ID）
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功返回会话列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+
+  /sessions/{session_id}:
+    get:
+      tags:
+        - 会话管理
+      summary: 获取会话详情
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      responses:
+        '200':
+          description: 成功返回会话详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    
+    patch:
+      tags:
+        - 会话管理
+      summary: 更新会话状态
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSessionRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+
+  # 消息管理
+  /sessions/{session_id}/messages:
+    get:
+      tags:
+        - 消息管理
+      summary: 获取会话消息
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: message_type
+          in: query
+          description: 消息类型过滤
+          schema:
+            $ref: '#/components/schemas/MessageType'
+      responses:
+        '200':
+          description: 成功返回消息列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+    
+    post:
+      tags:
+        - 消息管理
+      summary: 发送消息
+      description: 客服发送消息给用户
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: 消息发送成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  # 黑名单管理
+  /blacklist:
+    get:
+      tags:
+        - 黑名单管理
+      summary: 获取黑名单列表
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: platform
+          in: query
+          description: 平台类型过滤
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功返回黑名单列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlacklistListResponse'
+    
+    post:
+      tags:
+        - 黑名单管理
+      summary: 添加黑名单
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddBlacklistRequest'
+      responses:
+        '201':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlacklistResponse'
+
+  /blacklist/{blacklist_id}:
+    delete:
+      tags:
+        - 黑名单管理
+      summary: 移除黑名单
+      parameters:
+        - name: blacklist_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # 数据统计
+  /analytics/overview:
+    get:
+      tags:
+        - 数据统计
+      summary: 获取概览统计
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功返回统计数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsOverviewResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Token包含租户ID和用户权限信息
+
+  parameters:
+    TenantIdParam:
+      name: tenant_id
+      in: path
+      required: true
+      description: 租户ID
+      schema:
+        type: string
+        format: uuid
+    
+    SessionIdParam:
+      name: session_id
+      in: path
+      required: true
+      description: 会话ID
+      schema:
+        type: string
+    
+    PageParam:
+      name: page
+      in: query
+      description: 页码（从1开始）
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    PageSizeParam:
+      name: page_size
+      in: query
+      description: 每页数量
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # 通用模式
+    BaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 请求是否成功
+        timestamp:
+          type: string
+          format: date-time
+          description: 响应时间戳
+        request_id:
+          type: string
+          description: 请求追踪ID
+      required:
+        - success
+        - timestamp
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: 错误代码
+                message:
+                  type: string
+                  description: 错误描述
+                details:
+                  type: object
+                  description: 详细错误信息
+              required:
+                - code
+                - message
+          required:
+            - error
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 总记录数
+        page:
+          type: integer
+          description: 当前页码
+        page_size:
+          type: integer
+          description: 每页数量
+        total_pages:
+          type: integer
+          description: 总页数
+      required:
+        - total
+        - page
+        - page_size
+        - total_pages
+
+    # 租户相关
+    TenantStatus:
+      type: string
+      enum:
+        - active
+        - suspended
+        - pending
+      description: 租户状态
+
+    CreateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 租户名称
+        email:
+          type: string
+          format: email
+          description: 租户管理员邮箱
+        plan:
+          type: string
+          enum: [basic, standard, premium]
+          description: 租户套餐
+        config:
+          type: object
+          description: 租户配置信息
+      required:
+        - name
+        - email
+        - plan
+
+    UpdateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+        plan:
+          type: string
+          enum: [basic, standard, premium]
+        config:
+          type: object
+
+    TenantResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                status:
+                  $ref: '#/components/schemas/TenantStatus'
+                plan:
+                  type: string
+                created_at:
+                  type: string
+                  format: date-time
+                updated_at:
+                  type: string
+                  format: date-time
+                astrbot_instance:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum: [running, stopped, error]
+                    endpoint:
+                      type: string
+                      format: uri
+              required:
+                - id
+                - name
+                - email
+                - status
+                - plan
+                - created_at
+          required:
+            - data
+
+    TenantListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/TenantResponse/properties/data'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+          required:
+            - data
+            - pagination
+
+    # 会话相关
+    SessionStatus:
+      type: string
+      enum:
+        - active
+        - closed
+        - transferred
+      description: 会话状态
+
+    SessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                user_id:
+                  type: string
+                  description: 用户ID
+                user_name:
+                  type: string
+                  description: 用户昵称
+                platform:
+                  type: string
+                  description: 来源平台
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                assigned_staff:
+                  type: string
+                  description: 分配的客服
+                created_at:
+                  type: string
+                  format: date-time
+                updated_at:
+                  type: string
+                  format: date-time
+                last_message_at:
+                  type: string
+                  format: date-time
+                message_count:
+                  type: integer
+                  description: 消息总数
+              required:
+                - id
+                - user_id
+                - platform
+                - status
+                - created_at
+          required:
+            - data
+
+    SessionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/SessionResponse/properties/data'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+          required:
+            - data
+            - pagination
+
+    UpdateSessionRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        assigned_staff:
+          type: string
+          description: 分配的客服ID
+
+    # 消息相关
+    MessageType:
+      type: string
+      enum:
+        - text
+        - image
+        - voice
+        - file
+        - system
+      description: 消息类型
+
+    MessageDirection:
+      type: string
+      enum:
+        - inbound
+        - outbound
+      description: 消息方向
+
+    SendMessageRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: 消息内容
+        type:
+          $ref: '#/components/schemas/MessageType'
+        metadata:
+          type: object
+          description: 消息元数据
+      required:
+        - content
+        - type
+
+    MessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                session_id:
+                  type: string
+                content:
+                  type: string
+                type:
+                  $ref: '#/components/schemas/MessageType'
+                direction:
+                  $ref: '#/components/schemas/MessageDirection'
+                sender_id:
+                  type: string
+                sender_name:
+                  type: string
+                created_at:
+                  type: string
+                  format: date-time
+                metadata:
+                  type: object
+              required:
+                - id
+                - session_id
+                - content
+                - type
+                - direction
+                - created_at
+          required:
+            - data
+
+    MessageListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/MessageResponse/properties/data'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+          required:
+            - data
+            - pagination
+
+    # 黑名单相关
+    AddBlacklistRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: 用户ID
+        platform:
+          type: string
+          description: 平台类型
+        reason:
+          type: string
+          description: 拉黑原因
+      required:
+        - user_id
+        - platform
+        - reason
+
+    BlacklistResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                platform:
+                  type: string
+                reason:
+                  type: string
+                created_at:
+                  type: string
+                  format: date-time
+                created_by:
+                  type: string
+                  description: 操作人
+              required:
+                - id
+                - user_id
+                - platform
+                - reason
+                - created_at
+          required:
+            - data
+
+    BlacklistListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/BlacklistResponse/properties/data'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+          required:
+            - data
+            - pagination
+
+    # 统计分析相关
+    AnalyticsOverviewResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                total_sessions:
+                  type: integer
+                  description: 总会话数
+                active_sessions:
+                  type: integer
+                  description: 活跃会话数
+                total_messages:
+                  type: integer
+                  description: 总消息数
+                avg_response_time:
+                  type: number
+                  description: 平均响应时间（秒）
+                satisfaction_rate:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  description: 满意度（0-1）
+                platform_distribution:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                  description: 平台分布统计
+              required:
+                - total_sessions
+                - active_sessions
+                - total_messages
+          required:
+            - data
+
+  responses:
+    UnauthorizedError:
+      description: 认证失败
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            timestamp: "2024-01-01T10:00:00Z"
+            error:
+              code: "UNAUTHORIZED"
+              message: "Token无效或已过期"
+
+    ForbiddenError:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            timestamp: "2024-01-01T10:00:00Z"
+            error:
+              code: "FORBIDDEN"
+              message: "无权限访问该资源"
+
+    NotFoundError:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            timestamp: "2024-01-01T10:00:00Z"
+            error:
+              code: "NOT_FOUND"
+              message: "请求的资源不存在"
+
+    ValidationError:
+      description: 请求参数验证失败
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            timestamp: "2024-01-01T10:00:00Z"
+            error:
+              code: "VALIDATION_ERROR"
+              message: "请求参数验证失败"
+              details:
+                name: ["租户名称不能为空"]
+                email: ["邮箱格式不正确"] 
