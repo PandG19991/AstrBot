@@ -1,0 +1,94 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 🚀 AstrBot SaaS 核心开发规则
+
+## 📋 项目核心信息
+
+**项目目标**: 将单体AstrBot改造为多租户SaaS平台，支持多个企业用户独立使用智能客服服务。
+
+**架构原则**: 多租户架构 + 微服务设计 + 异步优先 + AI驱动
+
+## 🔗 文档引用体系
+
+### 📖 **必读核心文档** (所有AI任务前必须参考)
+- **项目概述**: `@cursor doc/README.md` - 项目背景和目标
+- **系统架构**: `@cursor doc/架构说明.md` - 整体架构和组件关系
+- **API契约**: `@cursor doc/api_contracts/README.md` - 完整API规范
+- **数据库设计**: `@cursor doc/database_design/README.md` - 数据模型和ERD图
+- **开发计划**: `@cursor doc/后端开发计划.md` - 详细任务拆分和AI协同指导
+
+### 📚 **按需参考文档**
+- **算法设计**: `@cursor doc/algorithms/README.md` - 核心业务算法
+- **开发规范**: `@cursor doc/开发规范.md` - 编码标准和最佳实践
+- **功能说明**: `@cursor doc/功能说明.md` - 详细业务功能描述
+- **测试用例**: `@cursor doc/测试用例.md` - 测试策略和用例
+
+## 🚨 **关键约束 (CRITICAL - 必须遵守)**
+
+### 1. 多租户隔离原则
+```python
+# ❌ 错误 - 缺少租户隔离
+def get_sessions():
+    return db.query(Session).all()
+
+# ✅ 正确 - 包含租户隔离  
+def get_sessions(tenant_id: UUID):
+    return db.query(Session).filter(Session.tenant_id == tenant_id).all()
+```
+
+### 2. 异步优先原则
+- 所有I/O操作使用 `async/await`
+- 数据库操作使用SQLAlchemy异步模式
+- HTTP请求使用httpx异步客户端
+
+### 3. 错误处理标准
+```python
+# 结构化异常处理 + 详细日志 + 标准错误响应
+try:
+    result = await some_operation()
+    logger.info("operation_success", tenant_id=tenant_id, operation="xxx")
+    return result
+except SpecificError as e:
+    logger.error("operation_failed", tenant_id=tenant_id, error=str(e))
+    raise HTTPException(status_code=400, detail="Specific error message")
+```
+
+### 4. API设计原则
+- 所有API必须包含租户权限验证
+- 使用 `@cursor doc/api_contracts/saas_platform_api.yaml` 作为权威规范
+- 返回标准化响应格式
+
+## 🤖 **AI任务执行模式**
+
+### 📝 标准提示词格式
+```markdown
+## 任务: 在 {文件路径} 中实现 {具体功能}
+
+## 参考文档: 
+- @cursor doc/{相关设计文档}
+- @cursor doc/api_contracts/models/common_models.yaml (统一数据模型)
+
+## 验收标准:
+- [ ] 包含tenant_id过滤 (多租户隔离)
+- [ ] 使用async/await (异步优先)
+- [ ] 完整错误处理和日志
+- [ ] 符合API契约规范
+```
+
+### 🔄 开发迭代原则
+1. **小任务拆分**: 每个任务30分钟内完成
+2. **文档优先**: 不确定时优先查阅设计文档  
+3. **测试同步**: 功能代码和测试代码同步开发
+4. **即时验证**: 完成后立即运行测试验证
+
+## 📊 **数据模型引用**
+- **统一数据模型**: `@cursor doc/api_contracts/models/common_models.yaml`
+- **数据库表结构**: `@cursor doc/database_design/erd_diagram.md`
+- **API接口定义**: `@cursor doc/api_contracts/saas_platform_api.yaml`
+
+---
+
+> **重要**: 本规则提供核心原则和引用指导。具体实现细节请参考引用的设计文档。开发过程中如遇到设计冲突，以最新的设计文档为准。

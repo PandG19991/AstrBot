@@ -1,0 +1,129 @@
+# 🛡️ 多租户隔离守护规则
+
+## 🚨 CRITICAL: 数据安全隔离 (零容忍违规)
+
+### ⛔ **严禁模式** - AI必须避免生成
+```python
+# ❌ 绝对禁止 - 缺少租户隔离的查询
+def get_sessions():
+    return db.query(Session).all()  # 跨租户数据泄露风险！
+
+def get_user_messages(user_id: str):
+    return db.query(Message).filter(Message.user_id == user_id).all()  # 危险！
+
+def delete_session(session_id: UUID):
+    db.query(Session).filter(Session.id == session_id).delete()  # 可能删除其他租户数据！
+```
+
+### ✅ **强制模式** - AI必须始终使用
+```python
+# ✅ 必须模式 - 包含租户隔离
+def get_sessions(tenant_id: UUID):
+    return db.query(Session).filter(Session.tenant_id == tenant_id).all()
+
+def get_user_messages(user_id: str, tenant_id: UUID):
+    return db.query(Message).filter(
+        Message.user_id == user_id,
+        Message.tenant_id == tenant_id  # 双重验证
+    ).all()
+
+def delete_session(session_id: UUID, tenant_id: UUID):
+    result = db.query(Session).filter(
+        Session.id == session_id,
+        Session.tenant_id == tenant_id  # 权限验证
+    ).delete()
+    if result == 0:
+        raise SessionNotFoundError()
+```
+
+## 🔒 API端点安全要求
+
+### **必需依赖注入**
+```python
+# 每个API端点必须包含租户验证
+@router.get("/sessions")
+async def get_sessions(
+    tenant: Tenant = Depends(get_current_tenant),  # 🚨 必需
+    db: AsyncSession = Depends(get_db)
+):
+    # tenant.id 自动提供当前用户的租户ID
+    sessions = await session_service.get_tenant_sessions(tenant.id)
+    return sessions
+```
+
+### **资源访问验证**
+```python
+# 访问特定资源前必须验证所有权
+@router.get("/sessions/{session_id}")
+async def get_session(
+    session_id: UUID,
+    tenant: Tenant = Depends(get_current_tenant)
+):
+    # 验证session属于当前租户
+    session = await session_service.get_session(session_id, tenant.id)
+    if not session:
+        raise HTTPException(404, "Session not found")  # 不泄露是否存在
+    return session
+```
+
+## 📊 数据模型安全约束
+
+### **模型定义强制字段**
+```python
+# 所有业务模型必须包含tenant_id
+class Session(Base):
+    __tablename__ = "sessions"
+    
+    id = Column(UUID, primary_key=True)
+    tenant_id = Column(UUID, ForeignKey("tenants.id"), nullable=False)  # 🚨 必需
+    user_id = Column(String, nullable=False)
+    
+    # 复合索引确保查询性能
+    __table_args__ = (
+        Index('ix_session_tenant_user', 'tenant_id', 'user_id'),
+    )
+```
+
+### **服务层强制模式**
+```python
+# 服务方法必须接受并使用tenant_id参数
+class SessionService:
+    async def create_session(self, session_data: SessionCreate, tenant_id: UUID) -> Session:
+        # 强制设置tenant_id
+        session = Session(**session_data.dict(), tenant_id=tenant_id)
+        # ... 保存逻辑
+        
+    async def get_session(self, session_id: UUID, tenant_id: UUID) -> Session:
+        # 必须同时验证session_id和tenant_id
+        return await db.query(Session).filter(
+            Session.id == session_id,
+            Session.tenant_id == tenant_id
+        ).first()
+```
+
+## 🔍 安全检查清单
+
+### AI代码生成后必须验证:
+- [ ] ✅ 所有数据库查询包含 `tenant_id` 过滤
+- [ ] ✅ API端点使用 `get_current_tenant()` 依赖  
+- [ ] ✅ 跨租户资源访问被明确拒绝
+- [ ] ✅ 错误消息不泄露其他租户数据存在性
+- [ ] ✅ 批量操作限制在当前租户范围内
+
+### **测试验证模式**
+```python
+# 必须包含跨租户访问测试
+async def test_cannot_access_other_tenant_sessions():
+    # 创建两个不同租户的session
+    tenant1_session = await create_test_session(tenant_id=tenant1.id)
+    tenant2_session = await create_test_session(tenant_id=tenant2.id)
+    
+    # 验证tenant1用户无法访问tenant2的数据
+    with pytest.raises(HTTPException) as exc:
+        await get_session(tenant2_session.id, tenant_id=tenant1.id)
+    assert exc.value.status_code == 404
+```
+
+---
+
+> **零容忍原则**: 任何违反多租户隔离的代码都是安全漏洞。AI生成的代码必须100%符合上述模式。如有疑问，参考 `@cursor doc/开发规范.md` 多租户章节。 

@@ -6,13 +6,14 @@
 
 ### 🚀 **新手入门路径**
 1. [**项目概述**](./README.md) → [**功能说明**](./功能说明.md) → [**需求规格说明书**](./需求规格说明书.md)
-2. [**架构说明**](./架构说明.md) → [**技术栈选择**](./3.技术栈.md) → [**改造方案评估**](./1.改造方案评估.md)
+2. [**架构说明**](./架构说明.md) → [**技术栈选择**](./技术栈.md) → [**改造方案评估**](./改造方案评估.md)
 3. [**开发规范**](./开发规范.md) → [**测试用例**](./测试用例.md) → [**部署与运维**](./部署与运维.md)
 
 ### 👨‍💻 **开发者参考路径**  
-1. [**API契约设计**](./api_contracts/README.md) → [**统一数据模型**](./api_contracts/models/common_models.yaml)
-2. [**数据库设计**](./database_design/README.md) → [**实体关系图**](./database_design/erd_diagram.md)
-3. [**算法设计**](./algorithms/README.md) → [**会话分配算法**](./algorithms/session_management/session_allocation.md)
+1. [**AI开发指南**](./ai_development_guide.md) → [**后端开发计划**](./后端开发计划.md) → [**开发规范**](./开发规范.md)
+2. [**API契约设计**](./api_contracts/README.md) → [**统一数据模型**](./api_contracts/models/common_models.yaml)
+3. [**数据库设计**](./database_design/README.md) → [**实体关系图**](./database_design/erd_diagram.md)
+4. [**算法设计**](./algorithms/README.md) → [**会话分配算法**](./algorithms/session_management/session_allocation.md)
 
 ### 🛠️ **运维人员参考路径**
 1. [**部署与运维**](./部署与运维.md) → [**运行逻辑**](./运行逻辑（核心流程图）.md)
@@ -28,13 +29,13 @@
 | [**README.md**](./README.md) | ✅ 完成 | 项目总览和快速开始 | 项目介绍、安装指南、基本使用 |
 | [**功能说明.md**](./功能说明.md) | ✅ 完成 | 业务功能详细说明 | 核心功能、业务流程、用例分析 |
 | [**需求规格说明书.md**](./需求规格说明书.md) | ✅ 完成 | 详细需求规格定义 | 功能需求、非功能需求、约束条件 |
-| [**1.改造方案评估.md**](./1.改造方案评估.md) | ✅ 完成 | AstrBot改造为SaaS的可行性分析 | 技术评估、架构改造、实施方案 |
+| [**改造方案评估.md**](./改造方案评估.md) | ✅ 完成 | AstrBot改造为SaaS的可行性分析 | 技术评估、架构改造、实施方案 |
 
 ### 🏗️ **2. 架构与设计**
 | 文档 | 状态 | 描述 | 关键内容 |
 |------|------|------|----------|
 | [**架构说明.md**](./架构说明.md) | ✅ 完成 | 系统架构设计 | 技术架构、部署架构、安全架构 |
-| [**3.技术栈.md**](./3.技术栈.md) | ✅ 完成 | 技术选型和说明 | 前后端技术栈、工具链选择 |
+| [**技术栈.md**](./技术栈.md) | ✅ 完成 | 技术选型和说明 | 前后端技术栈、工具链选择 |
 | [**运行逻辑（核心流程图）.md**](./运行逻辑（核心流程图）.md) | ✅ 完成 | 核心业务流程 | 业务时序图、状态机、流程图 |
 
 ### 📊 **3. 数据与API设计**
@@ -56,6 +57,8 @@
 ### 🔧 **5. 开发实现**
 | 文档 | 状态 | 描述 | 关键内容 |
 |------|------|------|----------|
+| [**AI开发指南.md**](./ai_development_guide.md) | ✅ 完成 | AI协同开发详细指导 | 文档体系、开发阶段、任务执行模式 |
+| [**后端开发计划.md**](./后端开发计划.md) | ✅ 完成 | 详细开发路线图和任务拆分 | 里程碑规划、AI协同、任务分解 |
 | [**开发规范.md**](./开发规范.md) | ✅ 完成 | 代码规范和开发流程 | 编码标准、提交规范、分支策略 |
 
 ### 🧪 **6. 测试与质量**  
@@ -118,12 +121,12 @@ graph LR
 #### 👤 **产品经理 / 业务分析师**
 1. [功能说明.md](./功能说明.md) - 了解业务需求
 2. [需求规格说明书.md](./需求规格说明书.md) - 详细需求分析
-3. [改造方案评估.md](./1.改造方案评估.md) - 可行性评估
+3. [改造方案评估.md](./改造方案评估.md) - 可行性评估
 4. [运行逻辑（核心流程图）.md](./运行逻辑（核心流程图）.md) - 业务流程
 
 #### 🏗️ **架构师 / 技术负责人**
 1. [架构说明.md](./架构说明.md) - 系统架构设计
-2. [技术栈.md](./3.技术栈.md) - 技术选型依据
+2. [技术栈.md](./技术栈.md) - 技术选型依据
 3. [统一数据模型](./api_contracts/models/common_models.yaml) - 数据架构
 4. [算法设计概述](./algorithms/00_algorithms_design_overview.md) - 核心算法架构
 
@@ -146,7 +149,7 @@ graph LR
 #### 🛠️ **运维工程师 / DevOps**
 1. [部署与运维.md](./部署与运维.md) - 运维指南  
 2. [架构说明.md](./架构说明.md) - 部署架构
-3. [技术栈.md](./3.技术栈.md) - 技术环境
+3. [技术栈.md](./技术栈.md) - 技术环境
 
 ---
 
@@ -180,7 +183,7 @@ graph LR
 | **SessionEntity** | `api_contracts/models/common_models.yaml` | `algorithms/session_management/session_allocation.md`, `功能说明.md` |
 | **会话分配算法** | `algorithms/session_management/session_allocation.md` | `api_contracts/models/common_models.yaml`, `架构说明.md` |
 | **黑名单同步** | `api_contracts/models/common_models.yaml` | `algorithms/00_algorithms_design_overview.md`, `功能说明.md` |
-| **LLM配置** | `api_contracts/models/common_models.yaml` | `3.技术栈.md`, `架构说明.md` |
+| **LLM配置** | `api_contracts/models/common_models.yaml` | `技术栈.md`, `架构说明.md` |
 
 #### 🧠 **3. 智能问答提示**
 ```yaml
@@ -202,7 +205,7 @@ business_logic_questions:
 technical_implementation_questions:
   primary_source: "架构说明.md"
   reference_sources:
-    - "3.技术栈.md"
+    - "技术栈.md"
     - "开发规范.md"
     - "部署与运维.md"
 ```

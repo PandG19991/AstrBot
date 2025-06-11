@@ -1,0 +1,300 @@
+---
+description: 
+globs: **/cursor doc/**
+alwaysApply: false
+---
+# 🚀 AstrBot SaaS 项目概览 - AI开发指导中心
+
+## 📋 项目核心信息
+
+### 🎯 项目目标
+**AstrBot SaaS改造项目**: 将单体AstrBot改造为多租户SaaS平台，支持多个企业用户独立使用智能客服服务。
+
+### 🏗️ 核心架构模式
+- **多租户架构**: 租户级数据隔离，共享应用实例
+- **微服务设计**: SaaS平台 + AstrBot实例 双向通信
+- **异步优先**: FastAPI + SQLAlchemy 2.0 + PostgreSQL
+- **AI驱动**: LLM编排服务，支持多种AI模型
+
+---
+
+## 📚 文档体系地图
+
+### 🎯 **核心设计文档** (开发必读)
+
+| 文档名称 | 文件路径 | 用途 | AI开发阶段 |
+|---------|----------|------|------------|
+| **项目概述** | `@cursor doc/README.md` | 项目背景、目标、核心价值 | 🔄 **贯穿全程** |
+| **系统架构说明** | `@cursor doc/架构说明.md` | 整体架构、组件关系、技术选型 | 🔄 **贯穿全程** |
+| **API契约设计** | `@cursor doc/api_contracts/README.md` | 完整API规范和数据模型 | 🏗️ **M1-M8 API开发** |
+| **数据库设计** | `@cursor doc/database_design/README.md` | 数据模型、ERD图、索引策略 | 🏗️ **M1-M3 数据层** |
+| **算法核心设计** | `@cursor doc/algorithms/README.md` | 会话分配、上下文管理算法 | 🧠 **M4 智能化阶段** |
+| **后端开发计划** | `@cursor doc/后端开发计划.md` | 详细开发路线图和任务拆分 | 🔄 **贯穿全程** |
+
+### 📊 **详细规范文档** (分阶段参考)
+
+| 文档类型 | 文件路径 | 主要内容 | 适用里程碑 |
+|---------|----------|----------|------------|
+| **需求规格** | `@cursor doc/需求规格说明书.md` | 功能需求、非功能需求 | 🎯 **M0-M1 基础阶段** |
+| **功能说明** | `@cursor doc/功能说明.md` | 业务功能详细描述 | 💼 **M2-M5 业务功能** |
+| **技术栈指南** | `@cursor doc/技术栈.md` | 技术选型、版本要求 | ⚙️ **M0 环境搭建** |
+| **开发规范** | `@cursor doc/开发规范.md` | 编码标准、API设计原则 | 🔄 **贯穿全程** |
+| **测试用例** | `@cursor doc/测试用例.md` | 测试策略、用例设计 | 🧪 **每个里程碑测试** |
+| **核心流程图** | `@cursor doc/运行逻辑（核心流程图）.md` | 业务流程可视化 | 💼 **M3-M5 业务逻辑** |
+| **部署运维** | `@cursor doc/部署与运维.md` | 容器化、K8s配置 | 🚀 **M8 部署阶段** |
+
+### 🎨 **专项设计文档**
+
+| 专项 | 主要文档 | 关键内容 | 开发重点 |
+|------|----------|----------|----------|
+| **API设计** | `@cursor doc/api_contracts/saas_platform_api.yaml` | OpenAPI 3.0规范 | RESTful设计、多租户API |
+| **数据模型** | `@cursor doc/api_contracts/models/common_models.yaml` | 统一数据模型定义 | 跨文档数据一致性 |
+| **数据库ERD** | `@cursor doc/database_design/erd_diagram.md` | 实体关系图 | 多租户表设计 |
+| **会话算法** | `@cursor doc/algorithms/session_management/session_allocation.md` | 智能分配算法 | 负载均衡、客服匹配 |
+
+---
+
+## 🎯 开发阶段文档使用指南
+
+### 🛠️ **M0: 开发基础搭建**
+**AI任务**: 创建项目结构、配置开发环境
+
+#### 📖 必读文档:
+- `@cursor doc/后端开发计划.md` (M0章节) - 详细任务清单
+- `@cursor doc/技术栈.md` - Python、FastAPI技术要求
+- `@cursor doc/开发规范.md` - 编码标准和工具配置
+
+#### 🎯 关键任务:
+```bash
+# AI执行任务示例
+1. 创建项目目录结构 (参考: 后端开发计划.md M0.1)
+2. 配置pyproject.toml (参考: 技术栈.md)
+3. 设置FastAPI基础框架 (参考: 开发规范.md)
+4. 配置开发工具链 (black, ruff, pytest)
+```
+
+---
+
+### 🔐 **M1: 核心数据模型与认证**
+**AI任务**: 建立数据模型基础和JWT认证体系
+
+#### 📖 必读文档:
+- `@cursor doc/database_design/README.md` - 完整数据库设计
+- `@cursor doc/database_design/erd_diagram.md` - ERD关系图
+- `@cursor doc/api_contracts/models/common_models.yaml` - 统一数据模型
+- `@cursor doc/开发规范.md` (多租户隔离规范)
+
+#### 🎯 关键任务:
+```python
+# AI执行示例 - 创建租户模型
+# 参考文档: @cursor doc/database_design/erd_diagram.md
+# 参考数据结构: @cursor doc/api_contracts/models/common_models.yaml#Tenant
+
+class Tenant(Base):
+    id = Column(UUID, primary_key=True)
+    name = Column(String(100), nullable=False)  # 来自ERD图设计
+    # ... 其他字段参考统一数据模型
+```
+
+#### ⚠️ 多租户隔离规则:
+```python
+# 🚨 CRITICAL: 所有数据操作必须包含tenant_id
+# ❌ 错误示例
+def get_sessions(): 
+    return db.query(Session).all()
+
+# ✅ 正确示例  
+def get_sessions(tenant_id: UUID):
+    return db.query(Session).filter(Session.tenant_id == tenant_id).all()
+```
+
+---
+
+### 🏢 **M2: 租户管理系统**
+**AI任务**: 实现租户CRUD、配置管理和资源隔离
+
+#### 📖 必读文档:
+- `@cursor doc/api_contracts/saas_platform_api.yaml` - 租户API规范
+- `@cursor doc/功能说明.md` (租户管理功能)
+- `@cursor doc/测试用例.md` (租户管理测试场景)
+
+#### 🎯 API开发指导:
+```python
+# AI任务: 实现租户API端点
+# 参考: @cursor doc/api_contracts/saas_platform_api.yaml
+
+@router.post("/tenants", response_model=TenantRead)
+async def create_tenant(
+    tenant: TenantCreate,
+    current_user: User = Depends(get_current_user)  # 认证依赖
+):
+    # 参考: 功能说明.md 中的租户创建流程
+    # 测试: 测试用例.md 中的租户管理测试场景
+```
+
+---
+
+### 💬 **M3: 会话与消息管理**
+**AI任务**: 实现完整的会话生命周期和消息处理
+
+#### 📖 必读文档:
+- `@cursor doc/algorithms/session_management/session_allocation.md` - 会话分配算法
+- `@cursor doc/运行逻辑（核心流程图）.md` - 消息处理流程
+- `@cursor doc/api_contracts/saas_platform_api.yaml` (消息API部分)
+
+#### 🎯 核心算法实现:
+```python
+# AI任务: 实现会话分配服务
+# 参考完整算法: @cursor doc/algorithms/session_management/session_allocation.md
+
+class SessionAllocationService:
+    async def allocate_session(self, session: Session) -> Optional[UUID]:
+        # 实现智能分配算法 (参考session_allocation.md中的详细代码)
+        agents = await self.get_available_agents(session.tenant_id)
+        # ... 算法逻辑参考算法文档
+```
+
+---
+
+### 🤖 **M4: LLM推理与智能化**
+**AI任务**: 集成LLM服务，实现智能客服功能
+
+#### 📖 必读文档:
+- `@cursor doc/功能说明.md` (LLM推理部分)
+- `@cursor doc/算法设计/` (上下文管理算法)
+- `@cursor doc/架构说明.md` (LLM编排架构)
+
+#### 🎯 LLM集成指导:
+```python
+# AI任务: 实现LLM服务抽象层
+# 参考: @cursor doc/功能说明.md LLM推理功能
+
+class BaseLLMProvider:
+    async def generate_response(self, context: ConversationContext) -> LLMResponse:
+        # 参考功能说明.md中的LLM推理流程
+```
+
+---
+
+### 🔗 **M5: AstrBot实例通信**
+**AI任务**: 实现SaaS平台与AstrBot实例的双向通信
+
+#### 📖 必读文档:
+- `@cursor doc/api_contracts/astrbot_webhook_api.yaml` - Webhook API规范
+- `@cursor doc/架构说明.md` (实例通信架构)
+- `@cursor doc/运行逻辑（核心流程图）.md` (实例交互流程)
+
+---
+
+### 🛡️ **M6-M8: 权限控制、数据分析、集成测试**
+**AI任务**: 完善系统功能和测试
+
+#### 📖 必读文档:
+- `@cursor doc/测试用例.md` - 完整测试策略
+- `@cursor doc/部署与运维.md` - 部署配置
+- `@cursor doc/需求规格说明书.md` - 验收标准
+
+---
+
+## 🤖 AI任务执行模式
+
+### 📝 **标准AI提示词格式**
+```markdown
+## 任务描述
+请在 {具体文件路径} 中实现 {具体功能}
+
+## 上下文参考  
+- 核心设计: @cursor doc/{核心设计文档}
+- API规范: @cursor doc/api_contracts/{相关API文件}
+- 数据模型: @cursor doc/api_contracts/models/common_models.yaml
+- 开发规范: @cursor doc/开发规范.md
+
+## 多租户隔离要求
+🚨 确保所有数据操作都包含tenant_id过滤
+
+## 验收标准
+- [ ] 功能正常工作
+- [ ] 包含必要的错误处理  
+- [ ] 通过单元测试
+- [ ] 符合多租户隔离要求
+```
+
+### 🔄 **迭代开发模式**
+1. **明确小任务** (30分钟内完成)
+2. **AI生成代码** (基于文档指导)
+3. **人工审查** (检查多租户隔离、错误处理)
+4. **运行测试** (单元测试 + 集成测试)
+5. **质量验证** (代码格式化、类型检查)
+6. **下一任务** (迭代推进)
+
+---
+
+## 🎯 关键设计原则
+
+### 🔐 **多租户隔离 (CRITICAL)**
+- 所有数据模型必须包含`tenant_id`字段
+- 所有数据查询必须包含租户过滤条件
+- API端点必须验证租户权限
+
+### 🛡️ **错误处理标准**
+- 使用结构化异常处理
+- 包含详细的错误日志记录
+- 返回标准化错误响应格式
+
+### ⚡ **异步优先**
+- 所有I/O操作使用async/await
+- 数据库操作使用SQLAlchemy异步模式
+- HTTP请求使用httpx异步客户端
+
+### 🧪 **测试驱动**
+- 每个功能点都有对应的单元测试
+- API端点都有集成测试
+- 关键业务流程有端到端测试
+
+---
+
+## 📊 文档交叉引用索引
+
+### 🔗 **核心概念定位表**
+
+| 概念/实体 | 主要定义文档 | 补充参考文档 | AI开发使用 |
+|-----------|-------------|-------------|------------|
+| **租户(Tenant)** | `database_design/erd_diagram.md` | `api_contracts/models/common_models.yaml` | M1-M2阶段 |
+| **会话(Session)** | `database_design/erd_diagram.md` | `algorithms/session_management/` | M3阶段 |
+| **消息(Message)** | `api_contracts/models/common_models.yaml` | `运行逻辑（核心流程图）.md` | M3阶段 |
+| **用户(User)** | `database_design/erd_diagram.md` | `开发规范.md`(认证部分) | M1阶段 |
+| **LLM配置** | `功能说明.md` | `架构说明.md` | M4阶段 |
+| **Webhook** | `api_contracts/astrbot_webhook_api.yaml` | `运行逻辑（核心流程图）.md` | M5阶段 |
+
+### 🎨 **设计模式参考**
+
+| 设计模式 | 参考文档 | 应用场景 | 实现要点 |
+|---------|----------|----------|----------|
+| **多租户隔离** | `开发规范.md` | 所有数据操作 | tenant_id过滤 |
+| **JWT认证** | `架构说明.md` | API访问控制 | Token验证中间件 |
+| **异步处理** | `技术栈.md` | I/O密集操作 | async/await模式 |
+| **服务层模式** | `后端开发计划.md` | 业务逻辑封装 | Service类设计 |
+
+---
+
+## ⚠️ 开发注意事项
+
+### 🚨 **必须遵守的规则**
+1. **多租户隔离**: 永远不要忘记tenant_id过滤
+2. **类型安全**: 所有函数都要有完整的类型注解
+3. **异常处理**: 每个service方法都要有异常处理
+4. **测试优先**: 功能代码和测试代码同步开发
+5. **文档引用**: 不确定设计时，优先查阅相关设计文档
+
+### 💡 **AI开发最佳实践**
+- 每次任务开始前，先查阅相关设计文档
+- 实现功能时，参考统一数据模型定义
+- 编写代码时，遵循项目编码规范
+- 完成功能后，立即编写对应测试
+- 遇到设计冲突时，以最新的设计文档为准
+
+---
+
+**文档版本**: v1.0  
+**更新时间**: 2024年  
+**维护原则**: 与开发进度同步更新，确保AI指导的准确性 

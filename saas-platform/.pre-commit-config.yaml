@@ -1,0 +1,88 @@
+# Pre-commit hooks 配置
+# 安装: pip install pre-commit && pre-commit install
+
+repos:
+  # Black - Python代码格式化
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        name: Black代码格式化
+        language_version: python3
+        args: ["--line-length=88", "--target-version=py311"]
+
+  # Ruff - 快速Python linter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        name: Ruff代码检查
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+        name: Ruff格式化
+
+  # isort - Import排序
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: Import排序
+        args: ["--profile", "black", "--filter-files"]
+
+  # MyPy - 类型检查
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        name: MyPy类型检查
+        additional_dependencies: [
+          "types-redis",
+          "types-requests",
+          "types-PyYAML",
+          "sqlalchemy[mypy]",
+          "pydantic"
+        ]
+        args: ["--config-file=pyproject.toml"]
+        exclude: ^(alembic/|tests/|scripts/)
+
+  # 通用代码质量检查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: 移除尾部空格
+      - id: end-of-file-fixer
+        name: 文件末尾换行
+      - id: check-yaml
+        name: YAML格式检查
+      - id: check-toml
+        name: TOML格式检查
+      - id: check-json
+        name: JSON格式检查
+      - id: check-added-large-files
+        name: 大文件检查
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+        name: 合并冲突检查
+
+  # 安全检查
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        name: Bandit安全检查
+        args: ["-r", "app/"]
+        exclude: ^tests/
+
+# CI/CD跳过检查（可选）
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false 

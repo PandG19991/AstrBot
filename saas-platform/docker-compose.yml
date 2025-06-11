@@ -1,0 +1,279 @@
+version: '3.8'
+
+services:
+  # AstrBot SaaS主应用
+  astrbot-saas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: astrbot-saas-app
+    restart: unless-stopped
+    environment:
+      # 数据库配置
+      DATABASE_URL: postgresql+asyncpg://astrbot:${POSTGRES_PASSWORD:-astrbot123}@postgres:5432/astrbot_saas
+      
+      # Redis配置
+      REDIS_URL: redis://redis:6379/0
+      
+      # 应用配置
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production}
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      
+      # JWT配置
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-jwt-secret-change-in-production}
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      
+      # LLM配置
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DIFY_API_URL: ${DIFY_API_URL:-http://dify:5001}
+      DIFY_API_KEY: ${DIFY_API_KEY:-}
+      
+      # 监控配置
+      PROMETHEUS_ENABLED: "true"
+      JAEGER_ENABLED: "true"
+      JAEGER_AGENT_HOST: jaeger
+      
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./static:/app/static
+    networks:
+      - astrbot-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.astrbot.rule=Host(`api.astrbot.local`)"
+      - "traefik.http.services.astrbot.loadbalancer.server.port=8000"
+
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: astrbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: astrbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-astrbot123}
+      POSTGRES_DB: astrbot_saas
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    networks:
+      - astrbot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U astrbot -d astrbot_saas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: astrbot-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - astrbot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Nginx反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: astrbot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    depends_on:
+      - astrbot-saas
+    networks:
+      - astrbot-network
+
+  # Prometheus监控
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: astrbot-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - astrbot-network
+
+  # Grafana仪表板
+  grafana:
+    image: grafana/grafana:latest
+    container_name: astrbot-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - astrbot-network
+
+  # Jaeger链路追踪
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: astrbot-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger HTTP收集器
+      - "6831:6831/udp"  # Jaeger agent
+    networks:
+      - astrbot-network
+
+  # MinIO对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: astrbot-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-astrbot}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-astrbot123456}
+    ports:
+      - "9000:9000"  # MinIO API
+      - "9001:9001"  # MinIO Console
+    volumes:
+      - minio_data:/data
+    networks:
+      - astrbot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Elasticsearch日志存储
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: astrbot-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - astrbot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana日志分析
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: astrbot-kibana
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - astrbot-network
+
+  # Logstash日志处理
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: astrbot-logstash
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./monitoring/logstash/config:/usr/share/logstash/config:ro
+      - ./logs:/logs:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - astrbot-network
+
+  # Portainer容器管理
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: astrbot-portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    networks:
+      - astrbot-network
+
+# 网络配置
+networks:
+  astrbot-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 数据卷配置
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  minio_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  portainer_data:
+    driver: local 

@@ -1,8 +1,8 @@
 aiohttp
 pydantic~=2.10.3
 psutil>=5.8.0
-openai
-anthropic
+# openai
+# anthropic
 qq-botpy
 chardet~=5.1.0
 Pillow

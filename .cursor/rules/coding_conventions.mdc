@@ -1,0 +1,90 @@
+---
+description: 
+globs: **/*.py,**/app/**,**/tests/**,**/api/**
+alwaysApply: false
+---
+# 📝 编码规范与约定
+
+## 🎯 核心编码原则
+
+### 1. **代码风格** 
+遵循 `@cursor doc/开发规范.md` 中的完整编码标准
+
+**关键约定**:
+```python
+# 类型注解必须完整
+async def create_tenant(tenant_data: TenantCreate) -> TenantRead:
+    pass
+
+# 使用结构化日志
+logger.info("tenant_created", tenant_id=tenant.id, name=tenant.name)
+
+# 标准异常处理
+except ValidationError as e:
+    logger.error("validation_failed", errors=e.errors())
+    raise HTTPException(status_code=422, detail=e.errors())
+```
+
+### 2. **文件命名规范**
+```
+app/
+├── models/tenant.py          # 数据模型：单数，下划线
+├── schemas/tenant.py         # Pydantic模式：对应model名称
+├── services/tenant_service.py # 服务层：模块名+_service
+├── api/v1/tenants.py         # API路由：复数，RESTful
+└── tests/unit/test_tenant_service.py # 测试：test_前缀
+```
+
+### 3. **依赖注入模式**
+```python
+# app/api/deps.py - 统一依赖
+async def get_current_tenant(
+    current_user: User = Depends(get_current_user)
+) -> Tenant:
+    return current_user.tenant
+
+# API路由中使用
+@router.get("/sessions")
+async def get_sessions(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    pass
+```
+
+### 4. **测试规范**
+详细测试策略参考 `@cursor doc/测试用例.md`
+
+**核心模式**:
+```python
+# 每个服务方法都有对应测试
+async def test_create_tenant_success(db_session):
+    # Given
+    tenant_data = TenantCreate(name="Test Corp", email="test@example.com")
+    
+    # When  
+    result = await tenant_service.create_tenant(tenant_data)
+    
+    # Then
+    assert result.name == "Test Corp"
+    assert result.id is not None
+```
+
+## 🔧 技术栈约定
+
+### **FastAPI约定**
+- 路由按版本分组：`/api/v1/`
+- 使用 Pydantic v2 进行数据验证
+- OpenAPI文档自动生成
+
+### **SQLAlchemy约定**  
+- 异步模式：`AsyncSession`, `async def`
+- 模型基类：继承自 `Base`
+- 外键关系：明确定义 `relationship()`
+
+### **项目结构约定**
+参考 `@cursor doc/后端开发计划.md` 中的M0阶段项目结构
+
+---
+
+> **完整规范**: 参考 `@cursor doc/开发规范.md` 获取详细的编码标准、工具配置和最佳实践。

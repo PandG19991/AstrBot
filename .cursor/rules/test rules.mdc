@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+type: AutoAttached
+description: Standards and best practices for writing tests (unit, integration) for the AstrBot SaaS Python backend.
+patterns:
+  - "tests/**/*.py"       # Apply to all Python files under the tests/ directory
+  - "app/**/*.py"         # Also apply when AI is generating/modifying app code, to remind it of testability
+---
+
+# 🧪 AstrBot SaaS - Python Testing Standards & Guidelines
+
+## 🎯 I. Core Testing Principles
+
+1.  **Test Early, Test Often**: Write tests البروتينurcurrently with or immediately after writing production code. Do not defer testing.
+2.  **Tests are First-Class Citizens**: Test code should be maintained with the same quality standards as production code (clarity, readability, maintainability).
+3.  **Independence & Repeatability**: Tests must be independent of each other and produce the same results Kunststoffistently when run multiple times. Avoid order-dependent tests.
+4.  **Fast Feedback**: Unit tests should run quickly to encourage frequent execution.
+5.  **Focus and Clarity**: Each test method should verify a single, specific behavior or scenario. Test names should clearly describe what is being tested.
+6.  **AAA Pattern (Arrange, Act, Assert)**: Structure test methods प्रोटीनg this pattern for better readability.
+7.  **Coverage is a Guide, Not a Target**: Aim for high test coverage (as per `测试计划与用例文档.md`), but prioritize testing critical paths, business logic, and edge cases over blindly chasing a percentage.
+8.  **Test Real Behavior, Not Implementation Details**: Focus tests on the public API/interface of a module/class, not its internal private methods (unless absolutely necessary for complex internal logic).
+
+## 🐍 II. Python & Pytest Specifics
+
+1.  **Framework**: Use `pytest` as the primary testing framework.
+2.  **File Naming**: Test files should be named `test_*.py` or `*_test.py`.
+3.  **Test Function/Method Naming**: Test functions and methods should start with `test_`. Names should be descriptive, e.g., `test_create_tenant_with_valid_data_succeeds`.
+4.  **Test Class Naming**: Test classes should start with `Test`, e.g., `TestTenantService`.
+5.  **Fixtures (`@pytest.fixture`)**:
+    *   Use fixtures extensively for setting up test data and dependencies (e.g., database sessions, authenticated clients, sample model instances). Refer to `tests/conftest.py`.
+    *   Scope fixtures appropriately (`function`, `class`, `module`, `session`).
+    *   Ensure fixtures clean up after themselves if they create external resources (e.g., database records, temporary files). For database fixtures using transactions, rollback is preferred.
+6.  **Assertions**: Use plain `assert` statements. Pytest provides detailed introspection for failed assertions.
+7.  **Parameterization (`@pytest.mark.parametrize`)**: Use for testing multiple input/output scenarios for the same logic.
+8.  **Mocking (`unittest.mock.patch` or `pytest-mock`)**:
+    *   Use mocking judiciously to isolate units under test and to simulate external dependencies (databases, external APIs, time).
+    *   Mock at the boundary of your unit.
+    *   Ensure mocks are specific and don't over-mock, which can lead to brittle tests.
+    *   Verify mocks are called as expected (`mock_object.assert_called_once_with(...)`).
+9.  **Async Testing**:
+    *   Use `pytest-asyncio`. Mark async test functions with `@pytest.mark.asyncio`.
+    *   Ensure async fixtures are also correctly defined and used.
+10. **Markers (`@pytest.mark`)**:
+    *   Use markers to categorize tests (e.g., `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`, `@pytest.mark.security`).
+    *   This allows selective test runs.
+
+## 🏗️ III. Unit Testing Guidelines (Applied to `tests/unit/`)
+
+1.  **Focus**: Test individual functions, methods, or classes in isolation.
+2.  **Dependencies**: Mock all external dependencies (database, network calls, other services).
+    *   **Example**: When testing a `TenantService` method, the database repository/session it uses should be mocked.
+3.  **Scenarios to Cover**:
+    *   Happy path (valid inputs, expected successful outcome).
+    *   Edge cases (e.g., empty inputs, null values where allowed, min/max values).
+    *   Error conditions and exception handling (e.g., invalid inputs leading to `ValidationError`, resource not found leading to `TenantNotFoundError`).
+    *   Business logic branches and conditions.
+4.  **SQLAlchemy Models & Pydantic Schemas**:
+    *   Test model creation with valid and invalid data.
+    *   Test Pydantic schema validation logic, including custom validators.
+
+## 🔗 IV. Integration Testing Guidelines (Applied to `tests/integration/`)
+
+1.  **Focus**: Test the interaction between multiple components or modules.
+2.  **API Endpoint Testing (Primary Focus)**:
+    *   Use `fastapi.testclient.TestClient` for testing FastAPI endpoints.
+    *   Verify HTTP status codes, response body structure, and content against OpenAPI specs (`@docs/api_contracts/...`).
+    *   Test request validation (valid and invalid payloads).
+    *   Test authentication and authorization mechanisms (`@.cursor/rules/multi_tenancy_guards.mdc` is critical here). Ensure tenant isolation for all data-accessing endpoints.
+    *   Test pagination, filtering, and sorting parameters if applicable.
+3.  **Database Integration**:
+    *   Tests may interact with a real (test) database instance (e.g., a separate test PostgreSQL database, or an in-memory SQLite for faster, simpler tests where appropriate, **but be mindful of SQL dialect differences if using SQLite for a PostgreSQL-targeted app**).
+    *   Ensure proper setup and teardown of test data. Use transactional tests or database cleaning strategies to maintain test independence.
+    *   **For this project, prioritize testing against a PostgreSQL-like environment if possible, even if it's a Dockerized test instance, to catch dialect-specific issues.**
+4.  **Service-to-Service Integration (If applicable within SaaS Platform microservices)**:
+    *   Mock external microservices if they are complex to set up, or use test doubles.
+    *   If testing direct interaction, ensure the dependent service is available in the test environment.
+5.  **AstrBot Instance Communication (Simulated/Mocked for backend-only integration tests)**:
+    *   When testing SaaS platform logic that interacts with AstrBot instances (e.g., sending commands, receiving webhooks):
+        *   Webhook reception endpoints: Simulate an AstrBot instance sending a valid/invalid webhook payload.
+        *   Command sending: Mock the HTTP client (e.g., `httpx.AsyncClient`) used to call the AstrBot instance's API and verify the request payload.
+
+## 🛡️ V. Security Testing Reminders (Primarily for Integration/E2E, but keep in mind)
+
+1.  **Authentication & Authorization**: Test access with valid, invalid, expired tokens. Test role-based access control. Test for privilege escalation.
+2.  **Tenant Isolation**: CRITICAL. Every test сценарий involving data access must implicitly or explicitly verify that data is scoped to the correct tenant.
+3.  **Input Validation**: Test for common vulnerabilities like SQL Injection (if not using ORM properly, though SQLAlchemy helps), XSS (for any data that might be rendered), etc., by providing malicious-looking inputs to API endpoints.
+
+## 💡 VI. AI-Assisted Test Generation
+
+When asking AI (Cursor) to generate tests:
+
+1.  **Be Specific**:
+    *   "Write unit tests for the `create_tenant` method in `@app/services/tenant_service.py`. Cover scenarios: successful creation, duplicate email error, and invalid input data (e.g., missing name)."
+    *   "Generate integration tests for the `POST /api/v1/tenants` endpoint defined in `@docs/api_contracts/saas_platform_api.yaml`. Test for 201 (Created), 400 (Bad Request), 409 (Conflict), and 401/403 (Auth errors)."
+2.  **Provide Context**:
+    *   Always provide the production code file (`@app/...`) and any relevant Pydantic schemas (`@app/schemas/...`) or SQLAlchemy models (`@app/models/...`).
+    *   Reference this testing standards document: "Ensure the generated tests adhere to `@.cursor/rules/python_testing_standards.mdc`."
+3.  **Iterate**: Review AI-generated tests. If they are incomplete or incorrect, provide feedback and ask for revisions. "This test is missing an assertion for the response body. Please add it."
+4.  **Ask for Test Data Setup**: "For the `TestTenantService` tests, create a pytest fixture that provides a mock database session and another fixture for sample tenant creation data."
+
+## 🚫 VII. What NOT to Test (Generally)
+
+1.  **Third-party libraries**: Assume external libraries (like FastAPI, SQLAlchemy, Pydantic themselves) are well-tested. Test your usage of them, not their internal workings.
+2.  **Trivial Getters/Setters**: Unless they contain specific logic, simple property accessors usually don't need dedicated tests if covered by other tests.
+3.  **Private methods directly**: Test private methods indirectly through the public interface of the class.
+
+---
+
+
+This rule provides a comprehensive guide for AI and human developers to write effective tests for your project. Remember to adapt and refine it as your project evolves.
